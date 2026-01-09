@@ -12,7 +12,7 @@ import logging
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-PUZZLES_DIR = os.environ.get("PUZZLES_DIR", r"C:\dev\oeuvre-mystere\scraper_app\outputs\puzzles")
+PUZZLES_DIR = os.environ.get("PUZZLES_DIR", os.path.join(BASE_DIR, "puzzles")
 MODEL_NAME = os.getenv('MODEL_NAME', 'intfloat/multilingual-e5-small')
 EMBED_ROLE_GUESS = os.getenv('EMBED_ROLE_GUESS', 'query')
 EMBED_ROLE_ANCHOR = os.getenv('EMBED_ROLE_ANCHOR', 'passage')
