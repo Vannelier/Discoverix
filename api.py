@@ -14,7 +14,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
-from .engine import prepare_puzzle, load_puzzles, get_available_campaigns, normalize_text, score_guess, get_model, get_puzzle_ids_for_campaign
+try:
+    # Cas le plus courant : api.py et engine.py sont dans le même dossier
+    from engine import (
+        prepare_puzzle,
+        load_puzzles,
+        get_available_campaigns,
+        normalize_text,
+        score_guess,
+        get_model,
+        get_puzzle_ids_for_campaign,
+    )
+except ImportError:
+    # Cas où le projet est utilisé comme package (ex: discoverix.api)
+    from .engine import (
+        prepare_puzzle,
+        load_puzzles,
+        get_available_campaigns,
+        normalize_text,
+        score_guess,
+        get_model,
+        get_puzzle_ids_for_campaign,
+    )
+
 
 TIMEZONE = 'Europe/Brussels'
 try:
