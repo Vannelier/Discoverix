@@ -1,0 +1,2434 @@
+<!doctype html>
+<html lang='fr'>
+<head>
+  <meta charset='utf-8' />
+  <meta name='viewport' content='width=device-width, initial-scale=1' />
+  <title>Discoverix</title>
+  <link rel='icon' href='./favicon.svg' type='image/svg+xml' />
+
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: rgba(255,255,255,0.06);
+      --panel2: rgba(255,255,255,0.10);
+      --border: rgba(255,255,255,0.10);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --muted2: rgba(255,255,255,0.55);
+      --shadow: 0 18px 45px rgba(0,0,0,0.45);
+      --radius: 18px;
+      --focus: 0 0 0 3px rgba(90,170,255,0.25);
+      --ok: #27c26a;
+      --bad: #ff6b6b;
+      --gold: rgba(255, 208, 90, 0.35);
+      --gold2: rgba(255, 208, 90, 0.18);
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 15% 10%, rgba(70,130,255,0.24), transparent 55%),
+        radial-gradient(900px 600px at 90% 25%, rgba(255,120,200,0.16), transparent 60%),
+        radial-gradient(900px 700px at 50% 105%, rgba(50,220,160,0.10), transparent 50%),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    .wrap{ max-width: 920px; margin: 22px auto; padding: 0 14px 40px 14px; }
+
+    .header{
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 14px;
+    }
+    .title h1{ margin: 0; font-size: 34px; line-height: 1.1; }
+    .title .sub{ margin: 2px 0 0 0; font-size: 13px; color: var(--muted); }
+
+    .right{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .pill{
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.25);
+    }
+    .dot{ width: 10px; height: 10px; border-radius: 999px; background: var(--muted2); }
+    .dot.ok{ background: var(--ok); }
+    .dot.bad{ background: var(--bad); }
+
+    .btn{
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn.primary{
+      background: rgba(90,170,255,0.22);
+      border-color: rgba(90,170,255,0.35);
+    }
+    .btn:focus{ outline: none; box-shadow: var(--focus); }
+    .btn:disabled{ opacity: 0.55; cursor: not-allowed; }
+
+    .error{
+      display: none;
+      border: 1px solid rgba(255,107,107,0.35);
+      background: rgba(255,107,107,0.10);
+      padding: 12px 14px;
+      border-radius: 14px;
+      margin: 10px 0;
+      white-space: pre-wrap;
+    }
+
+    .grid{ display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 10px; }
+
+    .card{
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .card h2{
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .hintBox{ display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
+
+    .hints{
+      margin: 0; padding: 0; list-style: none;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .hints li{
+      display: flex; gap: 8px; align-items: baseline;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.14);
+    }
+    /* Guess enter animation */
+    .guess-enter{
+      transform: translateY(8px) scale(0.995);
+      opacity: 0;
+      transition: transform 380ms cubic-bezier(.2,.9,.2,1), opacity 320ms ease-out;
+    }
+    .guess-enter.show{
+      transform: none;
+      opacity: 1;
+    }
+    /* Highlight best guess */
+    .rowItem.best { transform-origin: left center; transition: transform 420ms cubic-bezier(.2,.9,.2,1), box-shadow 420ms; }
+    .rowItem.best.best-anim{ transform: scale(1.02); box-shadow: 0 14px 40px rgba(255,208,90,0.08); }
+
+    /* Button loading / press */
+    .btn.loading{ opacity: 0.7; transform: translateY(1px) scale(0.995); pointer-events: none; }
+    .btn.loading::after{
+      content: '';
+      display: inline-block;
+      width: 14px; height: 14px; margin-left: 8px;
+      border-radius: 50%; border: 2px solid rgba(255,255,255,0.15); border-top-color: rgba(255,255,255,0.9);
+      animation: spin 800ms linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin{ to { transform: rotate(360deg); } }
+
+    /* Hint reveal glow */
+    .hints li.revealed{ box-shadow: 0 8px 24px rgba(90,170,255,0.10); transition: box-shadow 520ms ease; }
+    .hints li.glow{ animation: hintGlow 900ms ease-out; }
+    @keyframes hintGlow { 0% { box-shadow: 0 0 0 rgba(90,170,255,0); } 40% { box-shadow: 0 18px 60px rgba(90,170,255,0.18); } 100% { box-shadow: 0 6px 20px rgba(90,170,255,0.06); } }
+    .hnum{
+      width: 22px; color: rgba(255,255,255,0.55);
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .htext{
+      color: rgba(255,255,255,0.92);
+      font-weight: 650;
+      flex: 1;
+      line-height: 1.4;
+    }
+    .htype{
+      display: inline-block;
+      background: rgba(90,170,255,0.18);
+      border: 1px solid rgba(90,170,255,0.35);
+      color: rgba(255,255,255,0.92);
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-right: 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .btn-reveal{
+      flex-grow: 1;
+      text-align: center;
+      font-size: 12px;
+      padding: 8px 12px;
+      font-weight: 700;
+    }
+
+    .hintMeta{
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin-top: 10px; color: var(--muted); font-size: 13px;
+    }
+
+    .stats{
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      align-items: start;
+      min-width: 340px;
+    }
+    .statBox{
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.14);
+      border-radius: 14px;
+      padding: 10px 10px;
+      text-align: right;
+    }
+    .statLabel{ font-size: 12px; color: var(--muted2); margin-bottom: 6px; }
+    .statValue{ font-size: 26px; font-weight: 900; letter-spacing: 0.2px; }
+    .bar{ width: 100%; height: 10px; background: rgba(255,255,255,0.10); border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,255,255,0.10); }
+    .bar > div{
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, rgba(90,170,255,0.8), rgba(50,220,160,0.8), rgba(255,200,80,0.85), rgba(255,105,180,0.7));
+      transition: width 520ms ease;
+    }
+
+    .inputRow{ display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+    .input{
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.18);
+      color: var(--text);
+      padding: 12px 12px;
+      border-radius: 14px;
+      font-size: 16px;
+    }
+    .input::placeholder{ color: rgba(255,255,255,0.45); }
+
+    .listHeader{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+    .listHeader .meta{ color: var(--muted); font-size: 13px; }
+
+    .list{
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: rgba(0,0,0,0.12);
+      max-height: 380px;
+      overflow-y: auto;
+    }
+    .rowItem{
+      display: grid;
+      grid-template-columns: 54px 1fr 90px 100px;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      align-items: center;
+      font-size: 14px;
+    }
+    .rowItem:last-child{ border-bottom: none; }
+    .idx{
+      color: rgba(255,255,255,0.55);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .word{
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 650;
+      font-size: 15px;
+    }
+    .badge{
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      font-size: 15px;
+    }
+    .heat{
+      justify-self: end;
+      color: rgba(255,255,255,0.75);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 800;
+    }
+
+    .rowItem.best{
+      background: linear-gradient(90deg, var(--gold2), rgba(0,0,0,0.00));
+      border-left: 3px solid rgba(255, 208, 90, 0.75);
+    }
+    .rowItem.best .badge{
+      border-color: var(--gold);
+      background: rgba(255, 208, 90, 0.10);
+    }
+
+    @keyframes popGlow {
+      0% { transform: translateY(0); box-shadow: var(--shadow); }
+      40% { transform: translateY(-2px); box-shadow: 0 26px 70px rgba(0,0,0,0.55); }
+      100% { transform: translateY(0); box-shadow: var(--shadow); }
+    }
+    @keyframes hintFlash {
+      0% { background: rgba(90,170,255,0.18); }
+      100% { background: rgba(0,0,0,0.14); }
+    }
+    @keyframes hint-flash-bg {
+        0% { opacity: 0; }
+        20% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+    body::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: var(--gold);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    body.flash-hint::after {
+        animation: hint-flash-bg 700ms ease-out;
+    }
+    .hintPop { animation: popGlow 650ms ease; }
+    .hints li.newHint { animation: hintFlash 900ms ease; }
+
+    /* Modal */
+    .modal-backdrop{
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.58);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 100;
+    }
+    .modal{
+      width: 100%;
+      max-width: 560px;
+      background: rgba(15,20,35,0.92);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .modal h3{ margin: 0 0 6px 0; font-size: 18px; }
+    .modal p{ margin: 0 0 12px 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
+    code{
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.10);
+      padding: 2px 6px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* Victory */
+    .win-backdrop{
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 200;
+      background:
+        radial-gradient(900px 600px at 30% 20%, rgba(255,200,80,0.20), transparent 60%),
+        radial-gradient(900px 600px at 80% 30%, rgba(90,170,255,0.18), transparent 60%),
+        rgba(0,0,0,0.62);
+      backdrop-filter: blur(6px);
+    }
+    .win-card{
+      width: 100%;
+      max-width: 680px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(18,22,38,0.92);
+      box-shadow: 0 30px 100px rgba(0,0,0,0.65);
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      transform: translateY(6px) scale(0.98);
+      opacity: 0;
+      animation: winIn 520ms cubic-bezier(.2,1.1,.2,1) forwards;
+    }
+    @keyframes winIn{
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .win-card::before{
+      content: '';
+      position: absolute; inset: -2px;
+      background: linear-gradient(120deg, rgba(255,200,80,0.14), rgba(90,170,255,0.12), rgba(50,220,160,0.10));
+      filter: blur(18px);
+      opacity: 0.75;
+      pointer-events: none;
+    }
+
+    /* New Campaign Menu Styles */
+    .campaign-grid{
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+      max-height: 40vh;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+    .campaign-card{
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 14px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 200ms ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .campaign-card:hover{
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      border-color: rgba(255,255,255,0.25);
+    }
+    .campaign-card.selected{
+      border-color: rgba(90,170,255,0.65);
+      background: rgba(90,170,255,0.15);
+      box-shadow: 0 0 0 4px rgba(90,170,255,0.2);
+    }
+    .campaign-card.locked{
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .campaign-card.locked .lock-icon{
+      display: block;
+    }
+    .campaign-card h4{
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .campaign-score{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .campaign-score b{
+      color: var(--gold);
+      font-weight: 900;
+    }
+    .lock-icon{
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      opacity: 0.5;
+    }
+    .campaign-tag{
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--gold);
+      color: var(--bg);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .win-top{
+      position: relative;
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .win-title{
+      font-size: 22px;
+      margin: 0;
+      letter-spacing: 0.2px;
+    }
+    .win-burst{
+      position: absolute;
+      right: -110px; top: -110px;
+      width: 260px; height: 260px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,208,90,0.25), transparent 65%);
+      filter: blur(2px);
+      animation: burstSpin 2.6s linear infinite;
+      opacity: 0.9;
+      pointer-events: none;
+    }
+    @keyframes burstSpin{
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .win-actions{
+      position: relative;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .win-list{
+      position: relative;
+      margin: 10px 0 0 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .win-li{
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.18);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .win-li .k{
+      font-size: 12px;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .win-li .v{
+      font-size: 15px;
+      font-weight: 850;
+      line-height: 1.35;
+      color: rgba(255,255,255,0.92);
+      white-space: pre-wrap;
+    }
+
+    .confetti{
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999;
+      display: none;
+    }
+
+    /* Bonus Juicy Display */
+    #bonusDisplay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+      pointer-events: none;
+      font-size: 72px;
+      font-weight: 900;
+      color: rgba(255, 208, 90, 1);
+      text-shadow:
+        0 0 20px rgba(255, 208, 90, 0.8),
+        0 0 40px rgba(255, 208, 90, 0.5),
+        0 4px 8px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: none;
+    }
+
+    @keyframes bonusPop {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+      }
+      40% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+      60% {
+        transform: translate(-50%, -50%) scale(0.95);
+      }
+      80% {
+        transform: translate(-50%, -50%) scale(1.05);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -70%) scale(1);
+      }
+    }
+
+    #bonusDisplay.show {
+      animation: bonusPop 2s ease-out forwards;
+    }
+
+    /* Points lost display (red variant) */
+    #bonusDisplay.lost {
+      color: #ff6b6b;
+      text-shadow:
+        0 0 20px rgba(255, 107, 107, 0.8),
+        0 0 40px rgba(255, 107, 107, 0.5),
+        0 4px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Points bonus display (golden variant) */
+    #bonusDisplay.bonus {
+      color: rgba(255, 208, 90, 1);
+      text-shadow:
+        0 0 20px rgba(255, 208, 90, 0.8),
+        0 0 40px rgba(255, 208, 90, 0.5),
+        0 4px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Bouton Skip */
+    .btn.warning {
+      background: rgba(255, 107, 107, 0.18);
+      border-color: rgba(255, 107, 107, 0.35);
+      color: var(--text);
+    }
+    .btn.warning:hover {
+      background: rgba(255, 107, 107, 0.25);
+    }
+
+    @media (max-width: 720px){
+      .title h1{ font-size: 28px; }
+      .rowItem{ grid-template-columns: 44px 1fr 80px 80px; }
+      .stats{ grid-template-columns: 1fr; min-width: 180px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class='wrap'>
+    <div class='header'>
+      <div class='title'>
+        <h1>Discoverix</h1>
+        <div class='sub'>Run de survie: 100 points de départ, -1 par essai, indices payants, jackpots si tu devines vite. Tiens le plus longtemps possible !</div>
+      </div>
+
+      <div class='right'>
+        <div class='pill' title='Etat de connexion a l API'>
+          <span class='dot' id='apiDot'></span>
+          <span id='apiState'>API: inconnue</span>
+        </div>
+
+        <div class='pill'>
+          <span id='puzzleTag'>Puzzle: (aucun)</span>
+        </div>
+
+        <div class='pill' title='Progression dans la campagne'>
+          <span id='campaignProgress'>Puzzle 1 / 5</span>
+        </div>
+
+        <div class='pill'>
+          <span id='nextPuzzle'>Prochain puzzle à 00:00</span>
+        </div>
+
+        <button class='btn' id='changePuzzleBtn' type='button'>Choisir puzzle</button>
+      </div>
+    </div>
+
+    <div class='grid'>
+      <div class='card' id='hintCard'>
+        <h2>Indices</h2>
+
+        <div class='hintBox'>
+          <div>
+            <ul class='hints' id='hintsList'></ul>
+
+            <div class='hintMeta'>
+              <span>tentatine n°: <b id='guessCount'>0</b></span>
+            </div>
+          </div>
+
+          <div class='stats'>
+            <div class='statBox' style='grid-column: 1 / -1; background: var(--panel2);'>
+              <div class='statLabel'>Score (Barre de vie)</div>
+              <div class='statValue' id='playerScore' style='font-size: 32px; color: rgba(255, 208, 90, 0.95);'>100</div>
+              <div style='font-size: 11px; color: var(--muted2); margin-top: 4px;'>points (pas de limite)</div>
+            </div>
+            <div class='statBox'>
+              <div class='statLabel'>Dernier essai</div>
+              <div class='statValue' id='lastScore'>--</div>
+              <div class='bar'><div id='lastBar'></div></div>
+            </div>
+            <div class='statBox'>
+              <div class='statLabel'>Meilleur essai</div>
+              <div class='statValue' id='bestScore'>--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class='card'>
+        <h2>Proposition</h2>
+        <div class='inputRow'>
+          <input class='input' id='guessInput' placeholder='Tape un mot ou une expression' disabled aria-label='Proposition'>
+          <button class='btn primary' id='guessBtn' disabled aria-label='Valider la proposition'>Valider</button>
+        </div>
+
+        <div class='error' id='errorBox'></div>
+
+        <div style='margin-top: 12px; text-align: center;'>
+          <button class='btn warning' id='skipPuzzleBtn' type='button' disabled aria-label='Passer le puzzle'>
+            ⏭️ Passer (-50% points)
+          </button>
+        </div>
+
+        <div id="lastGuessDisplay" class="rowItem" style="display: none; margin: 10px 0; background: rgba(255,255,255,0.05);"></div>
+
+        <div class='listHeader'>
+          <div class='meta' id='listMeta'>Aucune proposition.</div>
+          <div class='meta'>Tri: meilleur score en haut</div>
+        </div>
+
+        <div class='list' id='list'></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Menu -->
+  <div class='modal-backdrop' id='mainMenu' style='display: flex;'>
+    <div class='modal' style='max-width: 680px;'>
+      <h3 style='font-size: 28px; text-align: center; margin-bottom: 8px;'>Discoverix</h3>
+      <p style='text-align: center; margin-bottom: 20px;'>Jeu de devinette sémantique - Mode Rogue-like</p>
+
+      <div style='background: rgba(255,208,90,0.08); border: 1px solid rgba(255,208,90,0.25); padding: 12px; border-radius: 12px; margin-bottom: 20px;'>
+        <div style='font-size: 13px; line-height: 1.6;'>
+          <b>Objectif :</b> Résoudre 5 puzzles consécutifs sans tomber à 0 points<br>
+          <b>Score de départ :</b> 100 points<br>
+          <b>Guess :</b> -1 par essai<br>
+        </div>
+      </div>
+
+      <div style='margin-bottom: 16px;'>
+        <label style='display: block; margin-bottom: 8px; color: var(--text); font-size: 14px; font-weight: 700;'>Choisir une Campagne</label>
+        <div class="campaign-grid" id="campaignGrid">
+          <!-- Les cartes de campagne seront injectées ici par JS -->
+        </div>
+      </div>
+
+      <button class='btn primary' id='startGameBtn' type='button' style='width: 100%; font-size: 16px; padding: 14px;' aria-label='Démarrer la campagne' disabled>Sélectionnez une campagne</button>
+    </div>
+  </div>
+
+  <!-- Victory overlay -->
+  <div class='win-backdrop' id='winBackdrop'>
+    <div class='win-card' id='winCard'>
+      <div class='win-burst'></div>
+
+      <div class='win-top'>
+        <div>
+          <h3 class='win-title' id='winTitle'>Puzzle Résolu !</h3>
+        </div>
+      </div>
+
+      <ul class='win-list' id='winList'></ul>
+
+      <div class='win-actions'>
+        <button class='btn' id='winMenuBtn' type='button' aria-label='Retour au menu'>Retour au Menu</button>
+        <button class='btn primary' id='winNextBtn' type='button' aria-label='Puzzle suivant'>Puzzle Suivant</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Skip Puzzle overlay -->
+  <div class='win-backdrop' id='skipBackdrop' style='z-index: 210; display: none;'>
+    <div class='win-card'>
+      <div class='win-burst' style="background: radial-gradient(circle at 30% 30%, rgba(255,170,100,0.25), transparent 65%);"></div>
+      <div class='win-top'>
+        <div>
+          <h3 class='win-title'>Puzzle Passé ⏭️</h3>
+        </div>
+      </div>
+      <ul class='win-list' id='skipList'></ul>
+      <div class='win-actions'>
+        <button class='btn' id='skipMenuBtn' type='button' aria-label='Retour au menu'>Retour au Menu</button>
+        <button class='btn primary' id='skipNextBtn' type='button' aria-label='Puzzle suivant'>Puzzle Suivant</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campaign Complete overlay -->
+  <div class='win-backdrop' id='campaignCompleteBackdrop' style='z-index: 210; display: none;'>
+    <div class='win-card'>
+      <div class='win-burst' style="background: radial-gradient(circle at 30% 30%, rgba(255,208,90,0.35), transparent 65%);"></div>
+      <div class='win-top'>
+        <div>
+          <h3 class='win-title'>Campagne Terminée !</h3>
+        </div>
+      </div>
+      <ul class='win-list' id='campaignCompleteList'>
+          <li class="win-li">
+              <div class="k">Score Final</div>
+              <div class="v" id="campaignFinalScore" style="color: rgba(255, 208, 90, 0.95); font-weight: 900; font-size: 24px;">100</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Puzzles Résolus</div>
+              <div class="v" id="campaignPuzzlesCompleted">5 / 5</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Total d'essais</div>
+              <div class="v" id="campaignTotalGuesses">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Moyenne par puzzle</div>
+              <div class="v" id="campaignAvgGuesses">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Indices achetés</div>
+              <div class="v" id="campaignHintsBought">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Indices trouvés</div>
+              <div class="v" id="campaignHintsFound">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Jackpots obtenus</div>
+              <div class="v" id="campaignJackpots">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">XP gagnée</div>
+              <div class="v" id="campaignXP">--</div>
+          </li>
+      </ul>
+      <div style="margin: 16px 0; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 14px; border: 1px solid rgba(255,208,90,0.3);">
+          <div style="font-size: 13px; font-weight: 800; color: rgba(255,208,90,0.95); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Dernier Puzzle</div>
+          <ul class='win-list' id='campaignLastPuzzle' style="margin: 0;"></ul>
+      </div>
+      <div class='win-actions' style='flex-direction: column; gap: 10px;'>
+        <div style='display: flex; gap: 8px; width: 100%;'>
+          <button class='btn' id='campaignCopyBtn' type='button' style='flex: 1;'>Copier</button>
+          <button class='btn' id='campaignTwitterBtn' type='button' style='flex: 1;'>Twitter</button>
+          <button class='btn' id='campaignFacebookBtn' type='button' style='flex: 1;'>Facebook</button>
+        </div>
+        <button class='btn primary' id='campaignMenuBtn' type='button' style='width: 100%;'>Retour au Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over overlay (Défaite) -->
+  <div class='win-backdrop' id='gameOverBackdrop' style='z-index: 210; display: none;'>
+    <div class='win-card'>
+      <div class='win-burst' style="background: radial-gradient(circle at 30% 30%, rgba(255,107,107,0.25), transparent 65%);"></div>
+      <div class='win-top'>
+        <div>
+          <h3 class='win-title'>Game Over</h3>
+        </div>
+      </div>
+      <ul class='win-list' id='gameOverList'>
+          <li class="win-li">
+              <div class="k">Score Final</div>
+              <div class="v" id="finalGameScore" style="color: rgba(255,107,107,0.95); font-weight: 900; font-size: 24px;">0</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Puzzles Résolus</div>
+              <div class="v" id="finalPuzzlesCompleted">5 / 5</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Total d'essais</div>
+              <div class="v" id="gameOverTotalGuesses">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Moyenne par puzzle</div>
+              <div class="v" id="gameOverAvgGuesses">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Indices achetés</div>
+              <div class="v" id="gameOverHintsBought">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Indices trouvés</div>
+              <div class="v" id="gameOverHintsFound">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">Jackpots obtenus</div>
+              <div class="v" id="gameOverJackpots">--</div>
+          </li>
+          <li class="win-li">
+              <div class="k">XP gagnée</div>
+              <div class="v" id="gameOverXP">--</div>
+          </li>
+      </ul>
+      <div style="margin: 16px 0; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 14px; border: 1px solid rgba(255,107,107,0.3);">
+          <div style="font-size: 13px; font-weight: 800; color: rgba(255,107,107,0.95); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Puzzle Échoué</div>
+          <ul class='win-list' id='gameOverLastPuzzle' style="margin: 0;"></ul>
+      </div>
+      <div class='win-actions'>
+        <button class='btn primary' id='gameOverMenuBtn' type='button'>Retour au Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confetti canvas -->
+  <canvas class='confetti' id='confettiCanvas'></canvas>
+
+  <!-- Bonus Juicy Display -->
+  <div id='bonusDisplay'></div>
+
+  <script>
+    const API = 'http://127.0.0.1:8000/api/v1';
+    let sessionId = null;
+    let currentPuzzleId = null;
+    let currentCampaign = null;
+    let puzzleDay = null;
+    let guessesLocal = [];
+    let lastHintsCount = 0;
+    let availableCampaigns = [];
+    let selectedCampaign = null;
+    let pendingGuessForList = null;
+    let winAutoNextTimer = null;
+    let winAutoCountdownInterval = null;
+    let winAutoRemainingSeconds = 0;
+    const LS_KEY = 'discoverix_state_v1';
+
+    let currentGame = {
+      runId: null,
+      campaign: null,
+      puzzleIds: [],
+      currentPuzzleIndex: 0,
+      score: 100,              // Un seul score persistant
+      isActive: false,
+      puzzlesSolved: 0,
+      totalPuzzles: 5,
+    };
+    let prefetchedSession = null;
+
+    function saveState() {
+      try {
+        // Ne pas sauvegarder l'état d'une partie en cours
+        if (currentGame.isActive) return;
+        localStorage.setItem(LS_KEY, JSON.stringify({ sessionId, currentPuzzleId, currentCampaign, puzzleDay }));
+      } catch {}
+    }
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch { return null; }
+    }
+    function clearState() {
+      try { localStorage.removeItem(LS_KEY); } catch {}
+    }
+
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      box.style.display = 'block';
+      box.textContent = msg;
+    }
+    function clearError() {
+      const box = document.getElementById('errorBox');
+      box.style.display = 'none';
+      box.textContent = '';
+    }
+
+    function setGameEnabled(enabled) {
+      document.getElementById('guessInput').disabled = !enabled;
+      document.getElementById('guessBtn').disabled = !enabled;
+      document.getElementById('skipPuzzleBtn').disabled = !enabled;
+      if (enabled) document.getElementById('guessInput').focus();
+    }
+
+    // Affichage bonus juicy
+    function showBonusJuicy(text, type = 'bonus') {
+      const display = document.getElementById('bonusDisplay');
+      display.textContent = text;
+      display.className = type;
+      void display.offsetWidth; // Force reflow
+      display.classList.add('show');
+
+      // Retirer la classe après l'animation
+      setTimeout(() => {
+        display.classList.remove('show');
+      }, 2000);
+    }
+
+    function scoreBand(score) {
+      if (score >= 950) return 'incendie';
+      if (score >= 900) return 'brulant';
+      if (score >= 800) return 'tres chaud';
+      if (score >= 600) return 'chaud';
+      if (score >= 350) return 'tiede';
+      if (score >= 100) return 'froid';
+      return 'glacial';
+    }
+
+    function setApiState(ok) {
+      const dot = document.getElementById('apiDot');
+      const t = document.getElementById('apiState');
+      // Debug log to help diagnose API state issues
+      try { console.debug('setApiState called with', ok); } catch (e) {}
+      dot.classList.remove('ok', 'bad');
+      if (ok) { dot.classList.add('ok'); t.textContent = 'API: ok'; }
+      else { dot.classList.add('bad'); t.textContent = 'API: indisponible'; }
+    }
+
+    function setBar(elId, value) {
+      const el = document.getElementById(elId);
+      const w = Math.max(0, Math.min(100, Number(value || 0)));
+      el.style.width = w + '%';
+    }
+    function setBarAnimated(elId, value) {
+      const el = document.getElementById(elId);
+      const w = Math.max(0, Math.min(100, Number(value || 0)));
+      requestAnimationFrame(() => { el.style.width = w + '%'; });
+    }
+
+    function updateScoreCounter(elId, target) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+
+      const curText = String(el.textContent || '').trim();
+      const cur = (/^\d+$/.test(curText)) ? Number(curText) : 0;
+      const to = Number(target);
+
+      if (!Number.isFinite(to)) {
+        el.textContent = '--';
+        return;
+      }
+      if (to === cur) {
+        el.textContent = String(to);
+        return;
+      }
+
+      const diff = Math.abs(to - cur);
+      const duration = Math.max(420, 600 + Math.log1p(diff) * 80);
+
+      const t0 = performance.now();
+      let lastShown = cur - 1;
+
+      function step(ts) {
+        const t = Math.min(1, (ts - t0) / Math.max(1, duration));
+        const eased = 1 - Math.pow(1 - t, 4); // easeOutQuart for snappier feel
+        const v = Math.round(cur + (to - cur) * eased);
+
+        if (v !== lastShown) {
+          el.textContent = String(v);
+          lastShown = v;
+        }
+
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          el.textContent = String(to);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function setPlayerScore(score) {
+      const scoreEl = document.getElementById('playerScore');
+      if (score === null || score === undefined) {
+        scoreEl.textContent = '--';
+      } else {
+        updateScoreCounter('playerScore', score);
+
+        // Couleur dynamique selon le score
+        let color;
+        if (score >= 50) {
+          color = '#27c26a';  // Vert
+        } else if (score >= 10) {
+          color = 'rgba(90, 170, 255, 0.95)';  // Bleu
+        } else if (score >= 5) {
+          color = 'rgba(255, 208, 90, 0.95)';  // Jaune
+        } else {
+          color = '#ff6b6b';  // Rouge
+        }
+        scoreEl.style.color = color;
+      }
+    }
+
+
+    function animateBestScoreCounter(target) {
+      const el = document.getElementById('bestScore');
+      if (!el) return;
+
+      const curText = String(el.textContent || '').trim();
+      const cur = (/^\d+$/.test(curText)) ? Number(curText) : 0;
+      const to = Number(target);
+
+      if (!Number.isFinite(to)) {
+        el.textContent = '--';
+        return;
+      }
+      if (to <= cur) {
+        el.textContent = String(to);
+        return;
+      }
+
+      const diff = to - cur;
+      const phase2Span = (diff >= 20) ? Math.min(12, Math.max(8, Math.round(diff * 0.15))) : 0;
+      const mid = to - phase2Span;
+
+      function runPhase(from, end, durationMs, easingFn, onDone) {
+        const t0 = performance.now();
+        let lastShown = from - 1;
+
+        function step(ts) {
+          const t = Math.min(1, (ts - t0) / Math.max(1, durationMs));
+          const eased = easingFn(t);
+          const v = Math.round(from + (end - from) * eased);
+
+          if (v !== lastShown) {
+            el.textContent = String(v);
+            lastShown = v;
+          }
+
+          if (t < 1) {
+            requestAnimationFrame(step);
+          } else {
+            el.textContent = String(end);
+            if (onDone) onDone();
+          }
+        }
+        requestAnimationFrame(step);
+      }
+
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+      const easeInOutQuad = (t) => (t < 0.5) ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+      if (diff >= 20) {
+        runPhase(cur, mid, 380, easeOutCubic, () => {
+          runPhase(mid, to, 720, easeInOutQuad, null);
+        });
+      } else {
+        const dur = 520 + diff * 70;
+        runPhase(cur, to, dur, easeInOutQuad, null);
+      }
+    }
+
+    function setScoresUI(lastScore, bestScore) {
+      const ls = document.getElementById('lastScore');
+      const lastVal = (lastScore === null || lastScore === undefined) ? null : Number(lastScore);
+      const bestVal = (bestScore === null || bestScore === undefined) ? null : Number(bestScore);
+
+      ls.textContent = (lastVal === null || Number.isNaN(lastVal)) ? '--' : String(Math.round(lastVal));
+
+      if (bestVal === null || Number.isNaN(bestVal)) {
+        document.getElementById('bestScore').textContent = '--';
+      } else {
+        animateBestScoreCounter(Math.round(bestVal));
+      }
+
+      // Barre sur 1000 (échelle sémantique)
+      const barPercent = lastVal ? (lastVal / 1000) * 100 : 0;
+      setBarAnimated('lastBar', barPercent);
+    }
+
+    function escapeHtml(s) {
+      return String(s || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function capitalizeFirst(s) {
+      const t = String(s || '').trim();
+      if (!t) return '';
+      return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+
+    function renderHints(hints) {
+      const list = document.getElementById('hintsList');
+      // Rebuild hints using DOM methods to allow animations
+      list.innerHTML = '';
+
+      if (!hints || hints.length === 0) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class='hnum'>-</span><span class='htext'>(aucun indice)</span>`;
+        list.appendChild(li);
+        lastHintsCount = 0;
+        return;
+      }
+
+      const newRevealedCount = hints.filter(h => h.revealed).length;
+      const isNewHint = newRevealedCount > lastHintsCount;
+
+      const frag = document.createDocumentFragment();
+      hints.forEach((h, i) => {
+        const li = document.createElement('li');
+        const numSpan = document.createElement('span'); numSpan.className = 'hnum'; numSpan.textContent = String(i + 1);
+        li.appendChild(numSpan);
+
+        if (h.revealed) {
+          if (isNewHint && i === (newRevealedCount - 1)) {
+            li.classList.add('newHint');
+          }
+          li.classList.add('revealed');
+          const div = document.createElement('div'); div.className = 'htext';
+          if (h.type) {
+            const t = document.createElement('span'); t.className = 'htype'; t.textContent = h.type; div.appendChild(t);
+          }
+          const text = document.createTextNode(h.text || '');
+          div.appendChild(text);
+          li.appendChild(div);
+        } else {
+          const btn = document.createElement('button'); btn.className = 'btn btn-reveal';
+          btn.type = 'button';
+          btn.textContent = (h.type ? h.type + ' ' : '') + (h.cost ? `(${h.cost} pts)` : '');
+          btn.onclick = () => revealHint(h.index);
+          li.appendChild(btn);
+        }
+
+        frag.appendChild(li);
+      });
+      list.appendChild(frag);
+
+      // If a new hint appeared, add glow and scroll it into view
+      if (isNewHint) {
+        const revealedEls = Array.from(list.querySelectorAll('li.revealed'));
+        const el = revealedEls[revealedEls.length - 1];
+        if (el) {
+          el.classList.add('glow');
+          try { el.scrollIntoView({behavior: 'smooth', block: 'center'}); } catch (e) {}
+          setTimeout(() => { el.classList.remove('glow'); }, 1200);
+        }
+        const card = document.getElementById('hintCard');
+        card.classList.remove('hintPop');
+        void card.offsetWidth;
+        card.classList.add('hintPop');
+      }
+
+      lastHintsCount = newRevealedCount;
+    }
+
+    function setMetaUI(guessCount, nextHintIn) {
+      document.getElementById('guessCount').textContent = String(guessCount || 0);
+      const nextHintEl = document.getElementById('nextHint');
+      if (nextHintEl) {
+        // Remove any hint countdown display — only keep the unique attempt counter
+        nextHintEl.textContent = '';
+        nextHintEl.style.display = 'none';
+      }
+    }
+
+    function renderList(guesses) {
+      const el = document.getElementById('list');
+      const meta = document.getElementById('listMeta');
+
+      const fullList = pendingGuessForList ? guesses.concat([pendingGuessForList]) : guesses;
+
+      if (!fullList || fullList.length === 0) {
+        meta.textContent = 'Aucune proposition.';
+        el.innerHTML = '';
+        setScoresUI(null, null);
+        return;
+      }
+
+      const sorted = fullList.slice().sort((a,b) => (b.score ?? 0) - (a.score ?? 0));
+      const best = sorted[0].score ?? 0;
+
+      const last = fullList[fullList.length - 1];
+      const lastScore = last ? (last.score ?? 0) : null;
+
+      setScoresUI(lastScore, best);
+      meta.textContent = `${fullList.length} propositions (triees par score)`;
+
+      // Build DOM with fragment to avoid heavy reflows
+      const frag = document.createDocumentFragment();
+      sorted.forEach((g, idx) => {
+        const rawWord = (g.normalized || g.raw || '');
+        const displayWord = capitalizeFirst(rawWord);
+        const sc = Number(g.score ?? 0);
+        const heat = scoreBand(sc);
+        const isBest = idx === 0;
+
+        const row = document.createElement('div');
+        row.className = 'rowItem' + (isBest ? ' best' : '');
+
+        const idxEl = document.createElement('div'); idxEl.className = 'idx'; idxEl.textContent = `#${String(g.attempt ?? '?')}`;
+        const wordEl = document.createElement('div'); wordEl.className = 'word'; wordEl.title = displayWord; wordEl.textContent = displayWord;
+        const badgeEl = document.createElement('div'); badgeEl.className = 'badge'; badgeEl.textContent = String(sc);
+        const heatEl = document.createElement('div'); heatEl.className = 'heat'; heatEl.textContent = heat;
+
+        row.appendChild(idxEl); row.appendChild(wordEl); row.appendChild(badgeEl); row.appendChild(heatEl);
+
+        // Entrance animation
+        row.classList.add('guess-enter');
+        frag.appendChild(row);
+        // Best highlight animation after insert
+        if (isBest) {
+          // schedule best animation after paint
+          requestAnimationFrame(() => {
+            row.classList.add('show');
+            requestAnimationFrame(() => {
+              row.classList.add('best-anim');
+              setTimeout(() => row.classList.remove('best-anim'), 900);
+            });
+          });
+        } else {
+          requestAnimationFrame(() => row.classList.add('show'));
+        }
+      });
+
+      // Replace content
+      el.innerHTML = '';
+      el.appendChild(frag);
+    }
+
+    async function openMainMenu() {
+      const menu = document.getElementById('mainMenu');
+      const grid = document.getElementById('campaignGrid');
+      const startBtn = document.getElementById('startGameBtn');
+      menu.style.display = 'flex';
+      grid.innerHTML = '';
+      selectedCampaign = null;
+      startBtn.disabled = true;
+      startBtn.textContent = 'Sélectionnez une campagne';
+
+
+      // Check free campaign
+      let freeAvailable = false;
+      try {
+        const freeResp = await fetch(`${API}/free_campaign_available`);
+        const freeData = await freeResp.json();
+        freeAvailable = freeData.available;
+      } catch (e) {
+        console.error('Error checking free campaign:', e);
+      }
+
+      // Populate campaign grid
+      if (availableCampaigns.length === 0) {
+        grid.innerHTML = `<p style='color: var(--muted);'>Aucune campagne disponible pour le moment.</p>`;
+      } else {
+        availableCampaigns.forEach((camp, index) => {
+          const card = document.createElement('div');
+          card.className = 'campaign-card';
+          
+          // For now, let's make the first campaign free if available, as a demonstration
+          const isFree = freeAvailable && index === 0; 
+          const isLocked = !isFree;
+
+          card.classList.toggle('locked', isLocked);
+
+          card.innerHTML = `
+            ${isFree ? '<div class="campaign-tag">GRATUIT</div>' : ''}
+            <h4>${escapeHtml(camp)}</h4>
+            <div class="campaign-score">Meilleur Score: <b>-</b></div>
+            <div class="campaign-score">XP: <b>-</b></div>
+            <div class="lock-icon">🔒</div>
+          `;
+
+          if (!isLocked) {
+            card.addEventListener('click', () => {
+              // Deselect other cards
+              document.querySelectorAll('.campaign-card.selected').forEach(c => c.classList.remove('selected'));
+              
+              // Select this card
+              card.classList.add('selected');
+              selectedCampaign = camp;
+              
+              // Enable start button
+              startBtn.disabled = false;
+              startBtn.innerHTML = 'Démarrer la Campagne';
+            });
+          }
+          grid.appendChild(card);
+        });
+      }
+
+      activateFocusTrap(menu, grid);
+    }
+    function closeMainMenu() {
+      const menu = document.getElementById('mainMenu');
+      menu.style.display = 'none';
+      deactivateFocusTrap(menu);
+
+      // Reset selection
+      selectedCampaign = null;
+      const startBtn = document.getElementById('startGameBtn');
+      startBtn.disabled = true;
+      startBtn.textContent = 'Sélectionnez une campagne';
+      document.querySelectorAll('.campaign-card.selected').forEach(c => c.classList.remove('selected'));
+    }
+
+    function openWin() {
+      const backdrop = document.getElementById('winBackdrop');
+      backdrop.style.display = 'flex';
+      activateFocusTrap(backdrop, document.getElementById('winNextBtn'));
+      startConfetti(2200);
+    }
+
+    function closeWin() {
+      const backdrop = document.getElementById('winBackdrop');
+      backdrop.style.display = 'none';
+      deactivateFocusTrap(backdrop);
+      stopConfetti();
+    }
+
+    function openSkip(winReveal, guessCount, pointsLost) {
+      const backdrop = document.getElementById('skipBackdrop');
+      const list = document.getElementById('skipList');
+      list.innerHTML = '';
+
+      const work = winReveal && winReveal.work_canonical ? winReveal.work_canonical : '--';
+      const hints = winReveal && Array.isArray(winReveal.revealed_hints) ? winReveal.revealed_hints : [];
+      const url = winReveal && winReveal.wikidata_url ? String(winReveal.wikidata_url) : '';
+      const qid = (winReveal && winReveal.wikidata_qid ? String(winReveal.wikidata_qid) : '') || extractQidFromWikidataUrl(url);
+
+      function addItem(key, value) {
+        const li = document.createElement('li');
+        li.className = 'win-li';
+        li.innerHTML = `<div class='k'>${escapeHtml(key)}</div><div class='v'>${escapeHtml(value)}</div>`;
+        list.appendChild(li);
+      }
+
+      function addItemHtml(key, htmlValue) {
+        const li = document.createElement('li');
+        li.className = 'win-li';
+        li.innerHTML = `<div class='k'>${escapeHtml(key)}</div><div class='v'>${htmlValue}</div>`;
+        list.appendChild(li);
+      }
+
+      addItemHtml('Points perdus', `<span style="color: rgba(255,107,107,0.95); font-weight: 900;">−${pointsLost}</span>`);
+      addItem('Essais effectués', String(guessCount));
+      addItem('Oeuvre canonique', work);
+
+      const allLines = hints.length ? hints.map((h, i) => {
+        return `- ${h.text || ''}`;
+      }) : ['- (aucun indice)'];
+      addItem('Indices', allLines.join('\n'));
+
+      const placeholder = `<span>Chargement...</span>`;
+      addItemHtml('En deux mots', placeholder);
+
+      fetchWikiSummaryFromWikidata(qid).then(obj => {
+        const v = document.querySelector('#skipList .win-li:last-child .v');
+        if (!v) return;
+        if (!obj || !obj.extract) {
+          v.textContent = 'Pas de resume Wikipedia disponible.';
+          return;
+        }
+
+        const short = obj.extract.length > 320 ? (obj.extract.slice(0, 320) + '...') : obj.extract;
+        const safeShort = escapeHtml(short);
+        const safeUrl = escapeHtml(obj.pageUrl || '');
+        const link = obj.pageUrl
+          ? `<div style='margin-top:10px;'><a href='${safeUrl}' target='_blank' rel='noopener noreferrer' style='color:rgba(90,170,255,0.95); font-weight:800; text-decoration:none;'>Voir plus</a></div>`
+          : '';
+
+        v.innerHTML = `${safeShort}${link}`;
+      });
+
+      backdrop.style.display = 'flex';
+      activateFocusTrap(backdrop, document.getElementById('skipNextBtn'));
+    }
+
+    function closeSkip() {
+      const backdrop = document.getElementById('skipBackdrop');
+      backdrop.style.display = 'none';
+      deactivateFocusTrap(backdrop);
+    }
+
+    function populateLastPuzzleInfo(listId, winReveal) {
+      const list = document.getElementById(listId);
+      if (!list) return;
+      list.innerHTML = '';
+
+      const work = winReveal && winReveal.work_canonical ? winReveal.work_canonical : '--';
+      const url = winReveal && winReveal.wikidata_url ? String(winReveal.wikidata_url) : '';
+      const qid = (winReveal && winReveal.wikidata_qid ? String(winReveal.wikidata_qid) : '') || extractQidFromWikidataUrl(url);
+
+      function addItem(key, value) {
+        const li = document.createElement('li');
+        li.className = 'win-li';
+        li.innerHTML = `<div class='k'>${escapeHtml(key)}</div><div class='v'>${escapeHtml(value)}</div>`;
+        list.appendChild(li);
+      }
+
+      function addItemHtml(key, htmlValue) {
+        const li = document.createElement('li');
+        li.className = 'win-li';
+        li.innerHTML = `<div class='k'>${escapeHtml(key)}</div><div class='v'>${htmlValue}</div>`;
+        list.appendChild(li);
+      }
+
+      addItem('Oeuvre', work);
+
+      const placeholder = `<span style="color: rgba(255,255,255,0.55);">Chargement...</span>`;
+      addItemHtml('En deux mots', placeholder);
+
+      fetchWikiSummaryFromWikidata(qid).then(obj => {
+        const items = list.querySelectorAll('.win-li');
+        const lastItem = items[items.length - 1];
+        if (!lastItem) return;
+        const v = lastItem.querySelector('.v');
+        if (!v) return;
+        if (!obj || !obj.extract) {
+          v.textContent = 'Pas de resume Wikipedia disponible.';
+          return;
+        }
+
+        const short = obj.extract.length > 200 ? (obj.extract.slice(0, 200) + '...') : obj.extract;
+        const safeShort = escapeHtml(short);
+        const safeUrl = escapeHtml(obj.pageUrl || '');
+        const link = obj.pageUrl
+          ? `<div style='margin-top:8px;'><a href='${safeUrl}' target='_blank' rel='noopener noreferrer' style='color:rgba(90,170,255,0.95); font-weight:700; text-decoration:none; font-size:13px;'>Voir plus ↗</a></div>`
+          : '';
+
+        v.innerHTML = `${safeShort}${link}`;
+      });
+    }
+
+    async function openCampaignComplete() {
+      const score = currentGame.score;
+      document.getElementById('campaignFinalScore').textContent = score;
+      document.getElementById('campaignPuzzlesCompleted').textContent = '5 / 5';
+
+      if (currentGame.runId) {
+        try {
+          const resp = await fetch(`${API}/run/${currentGame.runId}/stats`);
+          if (resp.ok) {
+            const stats = await resp.json();
+            document.getElementById('campaignTotalGuesses').textContent = stats.total_guesses || 0;
+            document.getElementById('campaignAvgGuesses').textContent = stats.average_guesses || 0;
+            document.getElementById('campaignHintsBought').textContent = stats.hints_bought || 0;
+            document.getElementById('campaignHintsFound').textContent = stats.hints_discovered || 0;
+            document.getElementById('campaignJackpots').textContent = stats.jackpots || 0;
+            document.getElementById('campaignXP').textContent = stats.xp_earned || 0;
+
+            window.campaignShareText = `Campagne Discoverix terminée ! Score: ${score}, ${stats.total_guesses} essais, ${stats.jackpots} jackpots ! www.discoverix-game.com`;
+          }
+        } catch (e) {
+          console.error('Error loading campaign stats:', e);
+        }
+      }
+
+      if (currentGame.lastWinReveal) {
+        populateLastPuzzleInfo('campaignLastPuzzle', currentGame.lastWinReveal);
+      }
+
+      const backdrop = document.getElementById('campaignCompleteBackdrop');
+      backdrop.style.display = 'flex';
+      activateFocusTrap(backdrop, document.getElementById('campaignMenuBtn'));
+      startConfetti(4000);
+
+      currentGame.isActive = false;
+    }
+
+    function closeCampaignComplete() {
+      const backdrop = document.getElementById('campaignCompleteBackdrop');
+      backdrop.style.display = 'none';
+      deactivateFocusTrap(backdrop);
+      stopConfetti();
+    }
+
+    let _activeTrap = null;
+    let _trapPrevFocus = null;
+
+    function _isVisible(el) {
+      if (!el) return false;
+      return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    function _getFocusable(container) {
+      if (!container) return [];
+      const selectors = [
+        "a[href]",
+        "button:not([disabled])",
+        "input:not([disabled])",
+        "select:not([disabled])",
+        "textarea:not([disabled])",
+        "[tabindex]:not([tabindex='-1'])"
+      ];
+      const all = Array.from(container.querySelectorAll(selectors.join(',')));
+      return all.filter((el) => _isVisible(el));
+    }
+
+    function activateFocusTrap(backdropEl, initialFocusEl) {
+      if (!backdropEl) return;
+
+      if (_activeTrap && _activeTrap !== backdropEl) {
+        deactivateFocusTrap(_activeTrap);
+      }
+
+      _trapPrevFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      _activeTrap = backdropEl;
+
+      backdropEl.setAttribute('role', 'dialog');
+      backdropEl.setAttribute('aria-modal', 'true');
+
+      const focusables = _getFocusable(backdropEl);
+      const target = initialFocusEl || focusables[0] || backdropEl;
+
+      if (!target.hasAttribute('tabindex') && target === backdropEl) {
+        backdropEl.setAttribute('tabindex', '-1');
+      }
+
+      setTimeout(() => {
+        try { target.focus(); } catch {}
+      }, 0);
+    }
+
+    function deactivateFocusTrap(backdropEl) {
+      if (!backdropEl) return;
+      if (_activeTrap !== backdropEl) return;
+
+      _activeTrap = null;
+
+      if (_trapPrevFocus) {
+        try { _trapPrevFocus.focus(); } catch {}
+      }
+      _trapPrevFocus = null;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (document.getElementById('campaignCompleteBackdrop')?.style?.display === 'flex') { e.preventDefault(); return; }
+        if (document.getElementById('gameOverBackdrop')?.style?.display === 'flex') { e.preventDefault(); return; }
+        if (document.getElementById('winBackdrop')?.style?.display === 'flex') { e.preventDefault(); return; }
+        if (document.getElementById('mainMenu')?.style?.display === 'flex') { e.preventDefault(); return; }
+      }
+
+      if (e.key === 'Tab' && _activeTrap) {
+        const focusables = _getFocusable(_activeTrap);
+        if (focusables.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+
+        if (e.shiftKey) {
+          if (active === first || !_activeTrap.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    });
+
+    async function showGameOver() {
+        const score = currentGame.score || 0;
+        const puzzlesSolved = currentGame.puzzlesSolved || 0;
+
+        document.getElementById('finalGameScore').textContent = score;
+        document.getElementById('finalPuzzlesCompleted').textContent = `${puzzlesSolved} / 5`;
+
+        if (currentGame.runId) {
+          try {
+            const resp = await fetch(`${API}/run/${currentGame.runId}/stats`);
+            if (resp.ok) {
+              const stats = await resp.json();
+              document.getElementById('gameOverTotalGuesses').textContent = stats.total_guesses || 0;
+              document.getElementById('gameOverAvgGuesses').textContent = stats.average_guesses || 0;
+              document.getElementById('gameOverHintsBought').textContent = stats.hints_bought || 0;
+              document.getElementById('gameOverHintsFound').textContent = stats.hints_discovered || 0;
+              document.getElementById('gameOverJackpots').textContent = stats.jackpots || 0;
+              document.getElementById('gameOverXP').textContent = stats.xp_earned || 0;
+            }
+          } catch (e) {
+            console.error('Error loading game over stats:', e);
+          }
+        }
+
+        if (currentGame.lastWinReveal) {
+          populateLastPuzzleInfo('gameOverLastPuzzle', currentGame.lastWinReveal);
+        }
+
+        const backdrop = document.getElementById('gameOverBackdrop');
+        backdrop.style.display = 'flex';
+        activateFocusTrap(backdrop, document.getElementById('gameOverMenuBtn'));
+
+        currentGame.isActive = false;
+    }
+
+    function closeGameOver() {
+      const backdrop = document.getElementById('gameOverBackdrop');
+      backdrop.style.display = 'none';
+      deactivateFocusTrap(backdrop);
+    }
+    
+    async function startGameSession() {
+      if (!selectedCampaign) { showError('Choisis une campagne.'); return; }
+
+      try {
+        // Check if free campaign is available
+        const freeCheck = await fetch(`${API}/free_campaign_available`);
+        const freeData = await freeCheck.json();
+        // This is a simplification. We assume the first campaign is the free one if 'freeAvailable' is true.
+        const isFree = freeData.available && availableCampaigns.indexOf(selectedCampaign) === 0;
+
+        // Start run
+        const runReq = { campaign: selectedCampaign, is_free: isFree };
+        const runResp = await fetch(`${API}/start_run`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(runReq)
+        });
+        if (!runResp.ok) throw new Error(await runResp.text());
+        const runData = await runResp.json();
+
+        currentGame.isActive = true;
+        currentGame.runId = runData.run_id;
+        currentGame.campaign = selectedCampaign;
+        currentGame.puzzleIds = runData.puzzle_ids;
+        currentGame.score = runData.points;
+        currentGame.puzzlesSolved = 0;
+        currentGame.currentPuzzleIndex = 0;
+        currentGame.totalPuzzles = 5;
+
+        await startPuzzle(runData.run_id, null);
+        closeMainMenu();
+
+      } catch (e) {
+        showError(`Impossible de démarrer la run: ${e.message}`);
+      }
+    }
+
+    function updateLastGuessDisplay(guess) {
+        const el = document.getElementById('lastGuessDisplay');
+        if (!guess) {
+            el.style.display = 'none';
+            return;
+        }
+        const rawWord = (guess.normalized || guess.raw || '');
+        const displayWord = capitalizeFirst(rawWord);
+        const sc = Number(guess.score ?? 0);
+        const heat = scoreBand(sc);
+        el.innerHTML = `
+            <div class='idx'>#${escapeHtml(String(guess.attempt ?? '?'))}</div>
+            <div class='word' title='${escapeHtml(displayWord)}'>${escapeHtml(displayWord)}</div>
+            <div class='badge'>${sc}</div>
+            <div class='heat'>${heat}</div>
+        `;
+        el.style.display = 'grid';
+    }
+
+    function resetUiForNewPuzzle(puzzleId, campaign) {
+      clearError();
+      sessionId = null;
+      puzzleDay = null;
+      currentPuzzleId = puzzleId;
+      currentCampaign = campaign;
+      guessesLocal = [];
+      lastHintsCount = 0;
+      pendingGuessForList = null;
+      updateLastGuessDisplay(null);
+      
+      document.getElementById('puzzleTag').textContent = `Puzzle: ${puzzleId}`;
+
+      if (currentGame.isActive) {
+        const progress = `Puzzle ${currentGame.currentPuzzleIndex + 1} / ${currentGame.totalPuzzles}`;
+        document.getElementById('campaignProgress').textContent = progress;
+      }
+
+      renderHints([]);
+      setMetaUI(0, null);
+      renderList([]);
+      setGameEnabled(false);
+      saveState();
+    }
+
+    async function pingApi() {
+      try {
+        console.debug('pingApi: fetching', `${API}/health`);
+        const r = await fetch(`${API}/health`, { method: 'GET' });
+        console.debug('pingApi: fetch returned', r && r.status);
+        if (r.ok) {
+          const data = await r.json();
+          console.debug('pingApi: data', data);
+          availableCampaigns = (data.campaigns || []).map(c => typeof c === 'string' ? c : (c && c.name)).filter(Boolean);
+        }
+        setApiState(!!(r && r.ok));
+      } catch (err) { console.error('pingApi error', err); setApiState(false); }
+    }
+
+
+
+    function mapGameplayError(err) {
+      const e = String(err || 'erreur');
+      if (e === 'not_in_dictionary') return 'Ce mot n\'existe pas dans le dictionnaire.';
+      if (e === 'empty') return 'Saisie vide.';
+      return `Erreur: ${e}`;
+    }
+
+    function formatHMS(ms) {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+      const ss = String(s % 60).padStart(2, '0');
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function updateNextPuzzleCountdown() {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(24, 0, 0, 0);
+      const ms = next.getTime() - now.getTime();
+      const label = `Prochain puzzle dans ${formatHMS(ms)}`;
+      document.getElementById('nextPuzzle').textContent = label;
+    }
+
+    async function fetchWikiSummaryFromWikidata(qid) {
+      if (!qid) return null;
+
+      try {
+        const entityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${encodeURIComponent(qid)}.json`;
+        const er = await fetch(entityUrl, { method: 'GET' });
+        if (!er.ok) return null;
+
+        const ej = await er.json();
+        const ent = (ej && ej.entities && ej.entities[qid]) ? ej.entities[qid] : null;
+        if (!ent) return null;
+
+        const sitelinks = ent.sitelinks || {};
+        const fr = sitelinks.frwiki ? sitelinks.frwiki.title : null;
+        const en = sitelinks.enwiki ? sitelinks.enwiki.title : null;
+
+        const lang = fr ? 'fr' : (en ? 'en' : null);
+        const title = fr || en;
+        if (!lang || !title) return null;
+
+        const sumUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const sr = await fetch(sumUrl, { method: 'GET' });
+        if (!sr.ok) return null;
+
+        const sj = await sr.json();
+        if (!sj || !sj.extract) return null;
+
+        const extract = String(sj.extract).trim();
+        const pageUrl = sj.content_urls && sj.content_urls.desktop && sj.content_urls.desktop.page
+          ? String(sj.content_urls.desktop.page)
+          : `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+
+        return { extract, pageUrl };
+      } catch {
+        return null;
+      }
+    }
+
+    function extractQidFromWikidataUrl(url) {
+      const s = String(url || '');
+      const m = s.match(/(Q\d+)/i);
+      return m ? String(m[1]).toUpperCase() : '';
+    }
+
+    function renderWinReveal(winReveal, attempts, playerScore) {
+      const work = winReveal && winReveal.work_canonical ? winReveal.work_canonical : '--';
+      const hints = winReveal && Array.isArray(winReveal.revealed_hints) ? winReveal.revealed_hints : [];
+      const url = winReveal && winReveal.wikidata_url ? String(winReveal.wikidata_url) : '';
+      const qid = (winReveal && winReveal.wikidata_qid ? String(winReveal.wikidata_qid) : '') || extractQidFromWikidataUrl(url);
+      const wikidataUrl = url || (qid ? `https://www.wikidata.org/wiki/${encodeURIComponent(qid)}` : '');
+
+      const list = document.getElementById('winList');
+      list.innerHTML = '';
+
+      function addItem(key, value) {
+        const li = document.createElement('li');
+        li.className = 'win-li';
+        li.innerHTML = `<div class='k'>${escapeHtml(key)}</div><div class='v'>${escapeHtml(value)}</div>`;
+        list.appendChild(li);
+      }
+
+      function addItemHtml(key, htmlValue) {
+        const li = document.createElement('li');
+        li.className = 'win-li';
+        li.innerHTML = `<div class='k'>${escapeHtml(key)}</div><div class='v'>${htmlValue}</div>`;
+        list.appendChild(li);
+      }
+
+      if (playerScore !== null && playerScore !== undefined) {
+        addItemHtml('Score Final', `<span style="color: rgba(255, 208, 90, 0.95); font-weight: 900;">${playerScore}</span>`);
+      }
+
+      addItem('Essais necessaires', String(attempts || 0));
+      addItem('Oeuvre canonique', work);
+
+      const allLines = hints.length ? hints.map((h, i) => {
+        return `- ${h.text || ''}`;
+      }) : ['- (aucun indice)'];
+      addItem('Indices', allLines.join('\n'));
+
+      const placeholder = `<span>Chargement...</span>`;
+      addItemHtml('En deux mots', placeholder);
+
+      try {
+        window.winShareText = `J'ai découvert « ${work || ''} » en ${attempts || 0} essais sur Discoverix. #discoverix`;
+      } catch (e) {
+        window.winShareText = '';
+      }
+
+      fetchWikiSummaryFromWikidata(qid).then(obj => {
+        const v = document.querySelector('#winList .win-li:last-child .v');
+        if (!v) return;
+        if (!obj || !obj.extract) {
+          v.textContent = 'Pas de resume Wikipedia disponible.';
+          return;
+        }
+
+        const short = obj.extract.length > 320 ? (obj.extract.slice(0, 320) + '...') : obj.extract;
+        const safeShort = escapeHtml(short);
+        const safeUrl = escapeHtml(obj.pageUrl || '');
+        const link = obj.pageUrl
+          ? `<div style='margin-top:10px;'><a href='${safeUrl}' target='_blank' rel='noopener noreferrer' style='color:rgba(90,170,255,0.95); font-weight:800; text-decoration:none;'>Voir plus</a></div>`
+          : '';
+
+        v.innerHTML = `${safeShort}${link}`;
+      });
+    }
+
+    // Minimal prefetch: request the server to prepare the next puzzle (creates a short-lived session)
+    async function prefetchNextPuzzle() {
+      try {
+        if (!currentGame.isActive || !currentGame.runId || !Array.isArray(currentGame.puzzleIds)) return;
+        const nextIndex = (currentGame.currentPuzzleIndex || 0) + 1;
+        if (nextIndex >= currentGame.puzzleIds.length) return;
+        const nextPid = currentGame.puzzleIds[nextIndex];
+        if (!nextPid) return;
+
+        // Start a lightweight session to warm caches on server
+        const req = { run_id: currentGame.runId, puzzle_id: String(nextPid) };
+        const r = await fetch(`${API}/start`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(req)
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+        // store a reference so GC/cleanup can remove it later; we'll clear after 60s
+        prefetchedSession = { session_id: d.session_id, created_at: Date.now() };
+        setTimeout(() => { try { prefetchedSession = null; } catch (e) {} }, 60_000);
+      } catch (e) {
+        // ignore prefetch errors
+        try { console.debug('prefetchNextPuzzle error', e); } catch (e) {}
+      }
+    }
+
+    async function startPuzzle(runId, puzzleId) {
+      puzzleId = (String(puzzleId || '')).trim();
+
+      resetUiForNewPuzzle(puzzleId || 'Next', currentGame.campaign);
+
+      try {
+        const req = { run_id: runId };
+        if (puzzleId) req.puzzle_id = puzzleId;
+
+        const r = await fetch(`${API}/start`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(req)
+        });
+
+        if (!r.ok) {
+          const t = await r.text();
+          showError(`Erreur start (${r.status}): ${t}`);
+          setApiState(false);
+          return;
+        }
+
+        const data = await r.json();
+        sessionId = data.session_id;
+        puzzleDay = data.puzzle_day || null;
+        currentPuzzleId = data.puzzle_id;
+        currentGame.score = data.player_score;
+
+        setPlayerScore(data.player_score);
+        renderHints(data.revealed_hints);
+        setMetaUI(data.guess_count_unique, data.next_hint_in);
+        setGameEnabled(true);
+        setApiState(true);
+
+        saveState();
+
+        // Warm next puzzle if running a campaign
+        try { if (currentGame.isActive) prefetchNextPuzzle(); } catch (e) {}
+      } catch(e) {
+        showError('Impossible de joindre l\'API. Verifie que uvicorn tourne sur 127.0.0.1:8000. ' + e.message);
+        setApiState(false);
+      }
+    }
+
+    async function tryResume() {
+      const st = loadState();
+      if (!st || !st.sessionId || !st.currentPuzzleId) return false;
+      
+      currentGame.isActive = false; // On ne reprend pas une partie
+      sessionId = st.sessionId;
+      currentPuzzleId = st.currentPuzzleId;
+      currentCampaign = st.currentCampaign || null;
+      puzzleDay = st.puzzleDay || null;
+
+      document.getElementById('puzzleTag').textContent = `Puzzle: ${currentPuzzleId}${currentCampaign ? ` (${currentCampaign})` : ''}`;
+      setGameEnabled(false);
+
+      try {
+        const s = await fetch(`${API}/session/${sessionId}`);
+        if (!s.ok) { clearState(); return false; }
+        const sess = await s.json();
+        guessesLocal = Array.isArray(sess.guesses) ? sess.guesses : [];
+        guessesLocal.forEach((g, i) => { if (g && g.attempt == null) g.attempt = i + 1; });
+        setPlayerScore(sess.player_score);
+        renderList(guessesLocal);
+        renderHints(sess.revealed_hints || []);
+        setMetaUI(sess.guess_count_unique || 0, sess.next_hint_in);
+        setGameEnabled(!sess.is_win);
+        setApiState(true);
+        if (sess.is_win && sess.win_reveal) {
+          renderWinReveal(sess.win_reveal, sess.guess_count_unique, sess.player_score);
+          openWin();
+        }
+        return true;
+      } catch { clearState(); return false; }
+    }
+
+    async function sendGuess() {
+      clearError();
+      const input = document.getElementById('guessInput');
+      const guess = input.value.trim();
+      if (!guess || !sessionId) return;
+      setGameEnabled(false);
+      const guessBtn = document.getElementById('guessBtn');
+      try { guessBtn.classList.add('loading'); } catch (e) {}
+      input.disabled = true;
+
+      try {
+        const r = await fetch(`${API}/guess`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ session_id: sessionId, guess_text: guess })
+        });
+
+        if (!r.ok) { showError(`Erreur guess (${r.status}): ${await r.text()}`); input.select(); return; }
+
+        const data = await r.json();
+        if (!data.ok) {
+          setPlayerScore(data.player_score);
+          renderHints(data.revealed_hints || []);
+          setMetaUI(data.guess_count_unique || 0, data.next_hint_in);
+          showError(mapGameplayError(data.error));
+          input.value = ''; input.focus();
+          return;
+        }
+
+        if (data.is_duplicate) {
+          setPlayerScore(data.player_score);
+          renderHints(data.revealed_hints || []);
+          setMetaUI(data.guess_count_unique || 0, data.next_hint_in);
+          showError('Déjà proposé.');
+          input.value = ''; input.focus();
+          return;
+        }
+
+        if (pendingGuessForList) {
+          guessesLocal.push(pendingGuessForList);
+        }
+        pendingGuessForList = { raw: guess, normalized: data.normalized || guess, score: data.score ?? 0, attempt: data.guess_count_unique ?? (guessesLocal.length + 1) };
+
+        setPlayerScore(data.player_score);
+        renderHints(data.revealed_hints || []);
+        setMetaUI(data.guess_count_unique || guessesLocal.length + 1, data.next_hint_in);
+        renderList(guessesLocal);
+        updateLastGuessDisplay(pendingGuessForList);
+
+
+        if (data.gained_points > 0) {
+          document.body.classList.add('flash-hint');
+          setTimeout(() => { document.body.classList.remove('flash-hint'); }, 700);
+
+          // Affichage juicy du bonus
+          showBonusJuicy(`+${data.gained_points}`);
+
+          const box = document.getElementById('errorBox');
+          Object.assign(box.style, { display: 'block', border: '1px solid rgba(39,194,106,0.35)', background: 'rgba(39,194,106,0.10)' });
+          box.textContent = `Vous avez trouvé un indice caché !`;
+          setTimeout(() => { Object.assign(box.style, { display: 'none', border: '', background: '' }); }, 3000);
+        }
+
+        input.value = ''; input.focus();
+        saveState();
+        setApiState(true);
+
+        if (data.is_win) {
+            // Affichage juicy des bonus
+            let bonusText = '';
+            let bonusSubtext = '';
+
+            if (data.perfect_bonus) {
+              bonusText = `+${data.bonus_points}`;
+              bonusSubtext = 'PREMIER COUP !';
+            } else if (data.jackpot_bonus) {
+              bonusText = `+${data.bonus_points}`;
+              bonusSubtext = 'JACKPOT !';
+            } else if (data.normal_win_bonus) {
+              bonusText = `+${data.bonus_points} ✓`;
+              bonusSubtext = 'Puzzle résolu !';
+            }
+
+            if (bonusText) {
+              showBonusJuicy(bonusText);
+            }
+
+            // Message texte en plus
+            if (bonusSubtext || data.resurrection_bonus) {
+              const box = document.getElementById('errorBox');
+              let messages = [];
+              if (bonusSubtext) messages.push(bonusSubtext);
+              if (data.resurrection_bonus) messages.push('RÉSURRECTION !');
+
+              Object.assign(box.style, {
+                display: 'block',
+                border: '1px solid rgba(255,208,90,0.45)',
+                background: 'rgba(255,208,90,0.12)'
+              });
+              box.innerHTML = messages.join('<br>');
+              setTimeout(() => {
+                Object.assign(box.style, { display: 'none', border: '', background: '' });
+              }, 5000);
+            }
+
+            if (currentGame.isActive) {
+                // Mettre à jour le score et progression
+                currentGame.score = data.player_score;
+                currentGame.puzzlesSolved++;
+                currentGame.currentPuzzleIndex++;
+
+              // Prefetch next puzzle in background
+              try { prefetchNextPuzzle(); } catch (e) {}
+
+                // Vérifier si campagne terminée (5 puzzles)
+                if (currentGame.puzzlesSolved >= 5) {
+                    currentGame.lastWinReveal = data.win_reveal;
+                    renderWinReveal(data.win_reveal, data.guess_count_unique, data.player_score);
+                    closeWin();
+                    setTimeout(() => openCampaignComplete(), 500);
+                    return;
+                }
+            }
+
+            currentGame.lastWinReveal = data.win_reveal;
+            renderWinReveal(data.win_reveal, data.guess_count_unique, data.player_score);
+            openWin();
+            setGameEnabled(false);
+        } else if (data.player_score <= 0 && currentGame.isActive) {
+            currentGame.lastWinReveal = data.win_reveal;
+            showGameOver();
+            setGameEnabled(false);
+        }
+      } catch(e) {
+        showError(`Erreur reseau pendant la proposition: ${e.message}`);
+        setApiState(false);
+      } finally {
+        try { guessBtn.classList.remove('loading'); } catch (e) {}
+        // Restore input state only if not in end overlays
+        if (document.getElementById('winBackdrop').style.display !== 'flex' && document.getElementById('gameOverBackdrop').style.display !== 'flex') {
+          setGameEnabled(true);
+        }
+      }
+    }
+
+    async function revealHint(hintIndex) {
+      clearError();
+      if (!sessionId || hintIndex === null || hintIndex === undefined) return;
+
+      const buttons = document.querySelectorAll('.btn-reveal');
+      buttons.forEach(b => b.disabled = true);
+
+      try {
+        const r = await fetch(`${API}/reveal_hint`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ session_id: sessionId, hint_index: parseInt(hintIndex) })
+        });
+
+        if (!r.ok) {
+          const t = await r.text();
+          showError(`Erreur révélation (${r.status}): ${t}`);
+          return;
+        }
+
+        const data = await r.json();
+
+        setPlayerScore(data.player_score);
+        renderHints(data.revealed_hints || []);
+        setMetaUI(data.guess_count_unique || guessesLocal.length, data.next_hint_in);
+
+      } catch (e) {
+        showError('Erreur réseau pendant la révélation d\'indice.');
+        setApiState(false);
+      } finally {
+        const finalButtons = document.querySelectorAll('.btn-reveal');
+        finalButtons.forEach(b => b.disabled = false);
+      }
+    }
+
+    // Confetti
+    let _confettiRunning = false;
+    let _confettiRAF = 0;
+    let _confettiStopAt = 0;
+
+    function startConfetti(durationMs) {
+      const canvas = document.getElementById('confettiCanvas');
+      const ctx = canvas.getContext('2d');
+
+      function resize() {
+        canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
+        canvas.height = Math.floor(window.innerHeight * devicePixelRatio);
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      }
+
+      resize();
+      window.addEventListener('resize', resize, { passive: true });
+
+      canvas.style.display = 'block';
+      _confettiRunning = true;
+      _confettiStopAt = performance.now() + Math.max(400, Number(durationMs || 1800));
+
+      const W = () => window.innerWidth;
+      const H = () => window.innerHeight;
+
+      const colors = [
+        'rgba(255,200,80,0.95)',
+        'rgba(90,170,255,0.95)',
+        'rgba(50,220,160,0.95)',
+        'rgba(255,105,180,0.95)',
+        'rgba(255,255,255,0.90)'
+      ];
+
+      const parts = [];
+      const count = Math.min(220, Math.max(120, Math.floor((W() * H()) / 9000)));
+
+      for (let i = 0; i < count; i++) {
+        parts.push({
+          x: Math.random() * W(),
+          y: -20 - Math.random() * H() * 0.4,
+          vx: -1.6 + Math.random() * 3.2,
+          vy: 2.8 + Math.random() * 5.2,
+          g: 0.045 + Math.random() * 0.06,
+          w: 6 + Math.random() * 10,
+          h: 6 + Math.random() * 12,
+          rot: Math.random() * Math.PI * 2,
+          vr: -0.18 + Math.random() * 0.36,
+          c: colors[(Math.random() * colors.length) | 0],
+          a: 1.0
+        });
+      }
+
+      function step(ts) {
+        if (!_confettiRunning) return;
+
+        ctx.clearRect(0, 0, W(), H());
+
+        const fade = Math.max(0, Math.min(1, (_confettiStopAt - ts) / 500));
+
+        for (const p of parts) {
+          p.vy += p.g;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.vr;
+
+          if (p.x < -30) p.x = W() + 30;
+          if (p.x > W() + 30) p.x = -30;
+
+          if (p.y > H() + 40) {
+            p.y = -30;
+            p.x = Math.random() * W();
+            p.vy = 2.8 + Math.random() * 5.2;
+          }
+
+          p.a = fade;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+
+          let fill = p.c;
+          if (fill.includes('0.95')) fill = fill.replace('0.95', String(0.95 * p.a));
+          if (fill.includes('0.90')) fill = fill.replace('0.90', String(0.90 * p.a));
+
+          ctx.fillStyle = fill;
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        }
+
+        if (ts >= _confettiStopAt) {
+          stopConfetti();
+          return;
+        }
+
+        _confettiRAF = requestAnimationFrame(step);
+      }
+
+      cancelAnimationFrame(_confettiRAF);
+      _confettiRAF = requestAnimationFrame(step);
+    }
+
+    function stopConfetti() {
+      _confettiRunning = false;
+      cancelAnimationFrame(_confettiRAF);
+      const canvas = document.getElementById('confettiCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'none';
+    }
+
+    // Fonction pour passer le puzzle
+    async function skipPuzzle() {
+      if (!sessionId || !currentGame.isActive) return;
+
+      setGameEnabled(false);
+      clearError();
+
+      try {
+        const r = await fetch(`${API}/skip_puzzle`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ session_id: sessionId })
+        });
+
+        if (!r.ok) {
+          const t = await r.text();
+          showError(`Erreur skip (${r.status}): ${t}`);
+          setGameEnabled(true);
+          return;
+        }
+
+        const data = await r.json();
+
+        // Afficher les points perdus en rouge
+        showBonusJuicy(`−${data.points_lost}`, 'lost');
+
+        // Mettre à jour le score
+        currentGame.score = data.new_score;
+        setPlayerScore(data.new_score);
+
+        // Afficher la modale skip avec les infos
+        const guessCount = currentGame.guesses ? currentGame.guesses.length : guessesLocal.length;
+        openSkip(data.win_reveal, guessCount, data.points_lost);
+
+      } catch(e) {
+        showError(`Erreur réseau: ${e.message}`);
+        setGameEnabled(true);
+      }
+    }
+
+    // Events
+    document.getElementById('guessBtn').addEventListener('click', sendGuess);
+    document.getElementById('guessInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendGuess(); });
+    document.getElementById('skipPuzzleBtn').addEventListener('click', skipPuzzle);
+
+    // Menu principal
+    document.getElementById('changePuzzleBtn').addEventListener('click', openMainMenu);
+    document.getElementById('startGameBtn').addEventListener('click', startGameSession);
+
+    // Victoire puzzle
+    document.getElementById('winNextBtn').addEventListener('click', () => {
+        closeWin();
+        if (currentGame.isActive) {
+            startPuzzle(currentGame.runId, null);
+        } else {
+            openMainMenu();
+        }
+    });
+    document.getElementById('winMenuBtn').addEventListener('click', () => {
+        closeWin();
+        currentGame.isActive = false;
+        openMainMenu();
+    });
+
+    // Victoire campagne
+    document.getElementById('campaignMenuBtn').addEventListener('click', () => {
+        closeCampaignComplete();
+        openMainMenu();
+    });
+
+    // Copier le texte de partage
+    document.getElementById('campaignCopyBtn').addEventListener('click', async () => {
+        const text = window.campaignShareText || '';
+        try {
+            await navigator.clipboard.writeText(text);
+            const btn = document.getElementById('campaignCopyBtn');
+            const oldText = btn.textContent;
+            btn.textContent = '✅ Copié !';
+            setTimeout(() => { btn.textContent = oldText; }, 2000);
+        } catch (e) {
+            showError('Impossible de copier dans le presse-papier');
+        }
+    });
+
+    // Partager sur Twitter
+    document.getElementById('campaignTwitterBtn').addEventListener('click', () => {
+        const text = window.campaignShareText || '';
+        const url = window.location.href.split('#')[0];
+        const twitter = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+        window.open(twitter, '_blank');
+    });
+
+    // Partager sur Facebook
+    document.getElementById('campaignFacebookBtn').addEventListener('click', () => {
+        const url = window.location.href.split('#')[0];
+        const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+        window.open(facebook, '_blank');
+    });
+
+    // Game Over
+    document.getElementById('gameOverMenuBtn').addEventListener('click', () => {
+        closeGameOver();
+        openMainMenu();
+    });
+
+    // Skip buttons
+    document.getElementById('skipNextBtn').addEventListener('click', () => {
+      closeSkip();
+      if (currentGame.isActive) {
+        currentGame.puzzlesSolved++;
+        currentGame.currentPuzzleIndex++;
+
+        // Vérifier si campagne terminée
+        if (currentGame.puzzlesSolved >= 5) {
+          openCampaignComplete();
+        } else {
+          startPuzzle(currentGame.runId, null);
+        }
+      }
+    });
+
+    document.getElementById('skipMenuBtn').addEventListener('click', () => {
+      closeSkip();
+      openMainMenu();
+    });
+
+
+    (async () => {
+      updateNextPuzzleCountdown();
+      setInterval(updateNextPuzzleCountdown, 250);
+
+      await pingApi();
+
+      // Ouvrir le menu principal au démarrage
+      openMainMenu();
+   })();
+  </script>
+</body>
+</html>
